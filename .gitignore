@@ -1,0 +1,6 @@
+node_modules
+dist
+.env
+server/logs/*.log
+server/logs/.*audit.json
+server/logs/*.json
