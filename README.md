@@ -1,105 +1,116 @@
-# My ASM
+# Trợ lý du lịch
 
-Ứng dụng bản đồ (OpenStreetMap) + thời tiết (Open-Meteo) + tin tức (News API).
+Ứng dụng Vue 3 + Express hiện đang là một dự án travel assistant hoạt động thực tế: khám phá điểm đến, xem thời tiết, và hỏi trợ lý du lịch bằng tiếng Việt. Đây không còn là dự án dạng base trống/scaffold; dữ liệu điểm đến được lưu trong JSON, thời tiết lấy từ Open-Meteo, nội dung địa điểm lấy từ Wikipedia và câu trả lời AI dùng Gemini.
 
-- **client/**: Vue 3 + Vite (giao diện)
-- **server/**: Express (proxy gọi API ngoài, cache RAM, giấu API key)
-- Dữ liệu người dùng (yêu thích, lịch sử...) lưu ở **localStorage** phía client.
+## Tính năng
 
-> Trạng thái hiện tại: **base trống**, mới có khung thư mục, chưa có logic.
+- Trang chủ `/`: banner điểm đến tự chuyển sau 3 giây, danh sách có tìm kiếm và thông tin từ `server/data/cities.json`.
+- Tra cứu thời tiết ở cuối trang chủ: nhập tên hoặc chọn badge gợi ý; kết quả gồm hiện tại, bài thơ thời tiết và dự báo 7 ngày.
+- Trang chi tiết `/destinations/:id`: ảnh, mô tả, điểm tham quan, món ăn, lưu trú, di chuyển và mẹo du lịch. Thời tiết dùng tọa độ của điểm đến trong JSON.
+- Trang trợ lý `/assistant`: hội thoại SSE, câu hỏi mẫu dạng chip để điền vào prompt, kết quả tool thời tiết/Wikipedia và câu trả lời Markdown đã sanitize.
+- Wikipedia summary có thumbnail nếu bài viết có ảnh đại diện.
 
 ## Yêu cầu
 
-- Node.js **20.18+** (đã thử với 20.18; không cần cài nodemon hay dotenv)
+- Node.js 20 trở lên
 - npm
 
-## Cài đặt
+## Cài đặt và cấu hình
 
 ```bash
-# 1. Cài toàn bộ (root + server + client)
 npm run install:all
-
-# 2. Tạo file .env cho server (đã có sẵn bản mẫu .env, chỉ cần sửa)
-#    Nếu chưa có: copy server/.env.example thành server/.env
-#    Rồi điền NEWS_API_KEY, đổi email trong NOMINATIM_UA.
 ```
 
-Lấy key News API miễn phí tại https://newsapi.org
+Mở `server/.env` (nếu chưa có thì sao chép `server/.env.example` thành file này). Giữ cấu hình đang có và thêm key Gemini nếu chưa có:
 
-## Chạy
+```env
+GEMINI_API_KEY=điền_key_Gemini_thật_tại_máy_của_bạn
+```
 
-Chạy cả 2 cùng lúc (từ thư mục gốc `my-asm/`):
+Không gửi key thật vào chat hoặc commit file `.env`/API key. `GEMINI_MODEL` là tùy chọn; nếu không khai báo, server dùng `gemini-3-flash-preview`.
+
+### Cấu hình đường dẫn client và API
+
+Client dùng `/api` trên cùng origin theo mặc định. Trong development, Vite proxy đường dẫn này tới `http://localhost:3000`. Nếu cần đổi mặc định, sao chép `client/.env.example` thành `client/.env` khi chạy local, hoặc `client/.env.production` trước khi build production. Có thể cấu hình:
+
+- `VITE_BASE_PATH`: đường dẫn mount frontend; dùng `/` ở domain root hoặc ví dụ `/travel/` khi deploy dưới một path prefix. Vue Router và asset build cùng dùng base path này.
+- `VITE_API_BASE_URL`: để trống để tự dùng `<base path>api` trên cùng origin; khi API ở domain riêng, đặt URL đầy đủ, ví dụ `https://api.example.com/api`.
+- `VITE_API_PROXY_TARGET`: địa chỉ Express mà Vite proxy dùng trong development; production không dùng biến này.
+
+Trong ứng dụng Vue/Vite này, `VITE_BASE_PATH` là cấu hình tương ứng để mount ứng dụng dưới một path prefix; `SCRIPT_NAME` thường là tên biến môi trường của ứng dụng WSGI/Python.
+
+Cùng origin, phục vụ tại domain root:
+
+```env
+# client/.env hoặc client/.env.production
+VITE_BASE_PATH=/
+VITE_API_BASE_URL=
+CLIENT_ORIGINS=
+```
+
+Khác origin:
+
+```env
+# client/.env.production
+VITE_BASE_PATH=/
+VITE_API_BASE_URL=https://api.example.com/api
+```
+
+```env
+# server/.env
+# Thay origin local trong server/.env bằng origin frontend production.
+CLIENT_ORIGINS=https://app.example.com
+```
+
+Các biến `VITE_*` được đóng gói vào client lúc build; nếu đổi sau khi build thì cần build lại. Có thể liệt kê nhiều origin trong `CLIENT_ORIGINS` bằng dấu phẩy. Với cùng origin, production cần reverse proxy chuyển `<base path>api` tới `/api` của Express; host cũng cần fallback các route frontend về `index.html`. Với path prefix như `/travel/`, API mặc định sẽ là `/travel/api`.
+
+## Chạy ứng dụng
+
+Từ thư mục gốc:
 
 ```bash
 npm run dev
 ```
 
-Hoặc chạy riêng:
+Client: http://localhost:5173
+Server: http://localhost:3000
+Health check: http://localhost:3000/api/health
+
+Chạy riêng:
 
 ```bash
-npm run dev --prefix server   # http://localhost:3000
-npm run dev --prefix client   # http://localhost:5173
+npm run dev --prefix server
+npm run dev --prefix client
 ```
 
-Kiểm tra server: mở http://localhost:3000/api/health, thấy `{"ok":true}` là được.
-Giao diện: mở http://localhost:5173
+Client dùng Vue Router history mode; Vite dev server proxy `/api` tới Express. Nếu sửa `.env`, khởi động lại server.
 
-> Sửa file `.env` xong phải **tắt và chạy lại** server (`--watch` chỉ theo dõi file `.js`).
+## API chính
 
-## Cấu trúc thư mục
+| Method | Endpoint | Nội dung |
+| --- | --- | --- |
+| `GET` | `/api/city/list` | Danh sách destination từ `cities.json`. |
+| `GET` | `/api/city/:id` | Chi tiết destination; trả `404` nếu không có ID. |
+| `GET` | `/api/weather/by-name/:city` | Thời tiết hiện tại và 7 ngày theo tên. |
+| `GET` | `/api/weather/by-coordinates?lat=...&lon=...` | Thời tiết hiện tại và 7 ngày theo tọa độ. |
+| `GET` | `/api/weather/current/:city` | Thời tiết hiện tại theo tên. |
+| `GET` | `/api/weather/provinces` | Danh sách tỉnh/thành trong dữ liệu tọa độ Việt Nam. |
+| `GET` | `/api/wiki/summary/:title` | Summary cùng thumbnail tùy chọn. |
+| `GET` | `/api/wiki/article/:title` | Nội dung bài viết Wikipedia. |
+| `POST` | `/api/ai` | Hỏi trợ lý, nhận JSON hoàn chỉnh. |
+| `POST` | `/api/ai/stream` | Hỏi trợ lý và nhận tiến trình/kết quả qua SSE. |
 
-```
-my-asm/
-├── package.json          ← script chạy chung (npm run dev)
-├── client/
-│   ├── index.html
-│   ├── vite.config.js    ← có proxy /api -> localhost:3000
-│   └── src/
-│       ├── main.js
-│       ├── App.vue
-│       ├── api/          ← axios instance (http.js)
-│       ├── components/   ← component Vue
-│       └── composables/  ← hàm dùng chung (useLocalStorage...)
-└── server/
-    ├── .env              ← key thật, KHÔNG commit
-    ├── .env.example      ← file mẫu
-    ├── data/             ← file JSON lưu data nhẹ
-    ├── logs/             ← error-YYYY-MM-DD.log (tự sinh, không commit)
-    └── src/
-        ├── server.js     ← chỉ listen
-        ├── app.js        ← tạo app, gắn routes + error handler
-        ├── routes/       ← khai báo URL (weather, news, geo)
-        ├── services/     ← hàm gọi API ngoài
-        ├── middlewares/  ← xử lý 404 + lỗi (có ghi log)
-        └── utils/        ← cache.js, jsonFile.js, logger.js (winston)
+## Kiểm thử và build
+
+```bash
+npm test --prefix server
+npm run build --prefix client
 ```
 
-Quy tắc:
-- **routes**: nhận request, gọi service (kèm cache), trả JSON
-- **services**: chỉ gọi API ngoài và trả dữ liệu
-- **utils**: hàm dùng chung
+## Dữ liệu và giới hạn
 
-## Ghi log lỗi (winston)
-
-Mọi lỗi trong route (kể cả hàm async) tự chạy vào `middlewares/errorHandler.js`,
-được in ra terminal và ghi vào `server/logs/error-YYYY-MM-DD.log` (mỗi ngày một file):
-
-```
-[2026-09-29T10:00:00.000Z] ERROR GET /api/weather?lat=1&lon=2 - Request failed with status code 500
-```
-
-- Giữ log 14 ngày, file cũ hơn tự xoá (chỉnh `maxFiles` trong `utils/logger.js`).
-- Dùng ở chỗ khác:
-  ```js
-  import { logger } from '../utils/logger.js';
-  logger.info('Khởi động xong');
-  logger.error('Có lỗi: ' + err.message);
-  ```
-- Chỉ mức `error` được ghi vào file; `info`/`warn` chỉ hiện ở terminal.
-- Thư viện có thể tạo thêm file `*-audit.json` trong `logs/` để theo dõi việc xoay file, cứ để nguyên (đã nằm trong `.gitignore`).
-
-## Lưu ý
-
-- Import file nội bộ trong server **bắt buộc có đuôi `.js`** (`'./app.js'`).
-- Nominatim (OSM): tối đa 1 request/giây, bắt buộc có `User-Agent`.
-- Client gọi API qua `/api/...` (proxy của Vite), không gọi thẳng `localhost:3000`.
+- `server/data/cities.json` là nguồn cho trang chủ và trang chi tiết; ảnh cover/gallery là URL bên ngoài nên phụ thuộc host ảnh.
+- `server/data/vietnamProvinces.json` cung cấp tọa độ offline. Tọa độ destination trong `cities.json` cũng được ưu tiên cho tra cứu tên các điểm đến này.
+- Open-Meteo cung cấp thời tiết; Nominatim là fallback geocoder và yêu cầu User-Agent phù hợp.
+- Leaflet đã có trong dependencies nhưng chưa được dùng để render bản đồ. Route/service tin tức chưa phải luồng chức năng hoàn chỉnh.
+- Cache hiện ở RAM và mất khi server khởi động lại.

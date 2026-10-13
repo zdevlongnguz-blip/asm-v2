@@ -1,6 +1,11 @@
 node_modules
 dist
+# Local environment files may contain credentials; keep shareable templates tracked.
 .env
+.env.*
+!.env.example
+# Local MCP endpoint/header configuration can contain access credentials.
+.vscode/mcp.json
 server/logs/*.log
 server/logs/.*audit.json
 server/logs/*.json

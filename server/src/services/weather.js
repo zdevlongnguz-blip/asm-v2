@@ -96,6 +96,18 @@ export async function getWeatherByCoordinates(lat, lon, days = DEFAULT_FORECAST_
   });
 }
 
+export async function getWeatherByCityName(cityName, days = DEFAULT_FORECAST_DAYS) {
+  const coordinates = await getCoordinatesByName(cityName);
+  if (!coordinates) {
+    logger.warn(`getWeatherByCityName: không tìm thấy tọa độ cho "${cityName}"`);
+    return null;
+  }
+
+  const forecastDays = normalizeForecastDays(days);
+  const weather = await getWeatherByCoordinates(coordinates.lat, coordinates.lon, forecastDays);
+  return weather ? { cityName: String(cityName), ...weather } : null;
+}
+
 // Lấy thời tiết hiện tại theo tên thành phố.
 // Input: "Thanh Hóa"
 // Output: { cityName: "Thanh Hóa", temperature: 29, condition: "Clear sky", ... }

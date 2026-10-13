@@ -1,0 +1,446 @@
+{
+  "destinations": [
+    {
+      "id": "thanh-hoa",
+      "name": "Thanh Hóa",
+      "nameLocal": "Thanh Hóa",
+      "country": "Việt Nam",
+      "region": "Bắc Trung Bộ",
+      "tagline": "Vùng đất địa linh nhân kiệt với biển Sầm Sơn và di sản Thành Nhà Hồ",
+      "description": "Thanh Hóa là tỉnh lớn ở Bắc Trung Bộ, nổi tiếng với bãi biển Sầm Sơn, di sản thế giới Thành Nhà Hồ, những thung lũng ruộng bậc thang Pù Luông và nền ẩm thực đậm đà hương vị xứ Thanh. Đây là điểm đến lý tưởng cho kỳ nghỉ cuối tuần từ Hà Nội.",
+      "coordinates": { "lat": 19.8067, "lng": 105.7852 },
+      "bestTimeToVisit": "Tháng 5 - Tháng 9 (biển), Tháng 9 - Tháng 10 (Pù Luông mùa lúa chín)",
+      "climate": "Nhiệt đới gió mùa, mùa hè nóng ẩm, mùa đông lạnh khô",
+      "currency": "VND",
+      "language": ["Tiếng Việt"],
+      "timezone": "UTC+7",
+      "rating": 4.5,
+      "reviewCount": 1280,
+      "tags": ["biển", "di sản", "thiên nhiên", "ẩm thực", "gia đình"],
+      "averageDailyCost": { "budget": "600.000 VND", "midRange": "1.500.000 VND", "luxury": "4.000.000 VND" },
+      "images": {
+        "cover": "https://media.thanhtra.com.vn/public/uploads/2025/04/16/67ff3621e268f749b3766a5c.jpg?w=1319",
+        "gallery": [
+          "https://media.vneconomy.vn/images/upload/2022/12/30/001-1.jpeg",
+          "https://suckhoedoisong.qltns.mediacdn.vn/324455921873985536/2022/12/6/3178443604721789417086272977003295608033692n-16702938212891071386888.jpg"
+        ]
+      },
+      "attractions": [
+        {
+          "id": "bien-sam-son",
+          "name": "Biển Sầm Sơn",
+          "category": "Bãi biển",
+          "description": "Bãi biển dài hơn 9 km, nước trong, sóng vừa phải, có nhiều khu vui chơi, resort và hải sản tươi sống. Nổi bật với Hòn Trống Mái và quảng trường biển.",
+          "address": "Thành phố Sầm Sơn, Thanh Hóa",
+          "coordinates": { "lat": 19.7343, "lng": 105.9 },
+          "openingHours": "Cả ngày",
+          "ticketPrice": "Miễn phí",
+          "duration": "1 - 2 ngày",
+          "rating": 4.4,
+          "image": "https://loremflickr.com/800/500/sam,son,beach?lock=111"
+        },
+        {
+          "id": "thanh-nha-ho",
+          "name": "Thành Nhà Hồ",
+          "category": "Di sản UNESCO",
+          "description": "Tòa thành đá cuối thế kỷ XIV, được UNESCO công nhận là Di sản Văn hóa Thế giới năm 2011, nổi tiếng với kỹ thuật xây dựng bằng những khối đá lớn ghép khít không dùng vữa.",
+          "address": "Xã Vĩnh Long, huyện Vĩnh Lộc, Thanh Hóa",
+          "coordinates": { "lat": 20.0753, "lng": 105.6035 },
+          "openingHours": "07:00 - 17:00",
+          "ticketPrice": "40.000 VND/người lớn",
+          "duration": "2 - 3 giờ",
+          "rating": 4.6,
+          "image": "https://loremflickr.com/800/500/ho,dynasty,citadel?lock=112"
+        },
+        {
+          "id": "pu-luong",
+          "name": "Khu bảo tồn thiên nhiên Pù Luông",
+          "category": "Thiên nhiên",
+          "description": "Thung lũng xanh với ruộng bậc thang, guồng nước, bản làng người Thái và Mường. Rất thích hợp để trekking, homestay và chụp ảnh mùa lúa chín.",
+          "address": "Huyện Bá Thước và Quan Hóa, Thanh Hóa",
+          "coordinates": { "lat": 20.4333, "lng": 105.1833 },
+          "openingHours": "Cả ngày",
+          "ticketPrice": "Miễn phí (có thể thu phí tham quan một số bản)",
+          "duration": "2 - 3 ngày",
+          "rating": 4.7,
+          "image": "https://loremflickr.com/800/500/pu,luong,rice,terrace?lock=113"
+        },
+        {
+          "id": "suoi-ca-than",
+          "name": "Suối cá thần Cẩm Lương",
+          "category": "Thiên nhiên - Tâm linh",
+          "description": "Con suối trong xanh nơi hàng nghìn con cá dìa bơi lội, gắn với truyền thuyết linh thiêng của người Mường.",
+          "address": "Xã Cẩm Lương, huyện Cẩm Thủy, Thanh Hóa",
+          "coordinates": { "lat": 20.2, "lng": 105.46 },
+          "openingHours": "07:00 - 17:00",
+          "ticketPrice": "30.000 VND/người",
+          "duration": "1 - 2 giờ",
+          "rating": 4.3,
+          "image": "https://loremflickr.com/800/500/stream,fish,forest?lock=114"
+        },
+        {
+          "id": "ben-en",
+          "name": "Vườn quốc gia Bến En",
+          "category": "Vườn quốc gia",
+          "description": "Khu rừng nguyên sinh với hồ Sông Mực rộng lớn và hàng chục đảo nhỏ, phù hợp cho đi thuyền, câu cá và nghỉ dưỡng.",
+          "address": "Huyện Như Thanh, Thanh Hóa",
+          "coordinates": { "lat": 19.5833, "lng": 105.4 },
+          "openingHours": "07:00 - 17:00",
+          "ticketPrice": "40.000 VND/người",
+          "duration": "1 ngày",
+          "rating": 4.4,
+          "image": "https://loremflickr.com/800/500/lake,island,forest?lock=115"
+        }
+      ],
+      "food": [
+        {
+          "name": "Nem chua Thanh Hóa",
+          "description": "Nem chua gói lá ổi, vị chua ngọt cay nhẹ, đặc sản nổi tiếng nhất xứ Thanh.",
+          "priceRange": "50.000 - 150.000 VND/chục",
+          "image": "https://loremflickr.com/600/400/vietnamese,fermented,pork?lock=121"
+        },
+        {
+          "name": "Chè lam Phủ Quảng",
+          "description": "Bánh làm từ gạo nếp, gừng, mật mía và lạc, dẻo thơm, thường dùng làm quà.",
+          "priceRange": "40.000 - 80.000 VND/hộp",
+          "image": "https://loremflickr.com/600/400/vietnamese,sweet?lock=122"
+        },
+        {
+          "name": "Gỏi cá nhệch",
+          "description": "Món gỏi làm từ cá nhệch tươi trộn rau thơm, chuối chát, vị đậm đà đặc trưng vùng biển.",
+          "priceRange": "150.000 - 300.000 VND/đĩa",
+          "image": "https://loremflickr.com/600/400/fish,salad,vietnamese?lock=123"
+        },
+        {
+          "name": "Bánh gai Tứ Trụ",
+          "description": "Bánh làm từ lá gai, nếp, nhân đậu xanh và dừa, gói lá chuối thơm mềm.",
+          "priceRange": "5.000 - 10.000 VND/cái",
+          "image": "https://loremflickr.com/600/400/vietnamese,rice,cake?lock=124"
+        }
+      ],
+      "hotels": [
+        {
+          "name": "Khách sạn ven biển Sầm Sơn (Demo)",
+          "category": "3 sao",
+          "pricePerNight": "700.000 - 1.200.000 VND",
+          "rating": 4.2,
+          "image": "https://loremflickr.com/600/400/hotel,beach?lock=131"
+        },
+        {
+          "name": "Pù Luông Homestay (Demo)",
+          "category": "Homestay",
+          "pricePerNight": "400.000 - 800.000 VND",
+          "rating": 4.6,
+          "image": "https://loremflickr.com/600/400/homestay,mountain?lock=132"
+        }
+      ],
+      "transport": {
+        "gettingThere": [
+          "Từ Hà Nội: ô tô/xe khách khoảng 3 - 4 giờ (~150 km)",
+          "Tàu hỏa Bắc - Nam dừng ga Thanh Hóa",
+          "Sân bay Thọ Xuân (bay từ TP.HCM)"
+        ],
+        "gettingAround": ["Taxi, xe công nghệ", "Thuê xe máy", "Thuê xe riêng đi Pù Luông, Thành Nhà Hồ"]
+      },
+      "tips": [
+        "Tránh đi Sầm Sơn dịp lễ 30/4 - 1/5 và cuối tuần cao điểm nếu không thích đông.",
+        "Đặt homestay Pù Luông trước ít nhất 1 tuần vào mùa lúa chín.",
+        "Mua nem chua và chè lam tại cơ sở uy tín để làm quà."
+      ]
+    },
+    {
+      "id": "seoul",
+      "name": "Seoul",
+      "nameLocal": "서울",
+      "country": "Hàn Quốc",
+      "region": "Vùng thủ đô Seoul",
+      "tagline": "Thủ đô năng động nơi truyền thống giao thoa với văn hóa K-pop và công nghệ",
+      "description": "Seoul là thủ đô hiện đại của Hàn Quốc, nơi các cung điện cổ, làng hanok truyền thống nằm cạnh những tòa nhà chọc trời, khu mua sắm sầm uất và nền ẩm thực đường phố phong phú. Thành phố nổi tiếng với văn hóa Hallyu, cà phê, mỹ phẩm và hệ thống giao thông công cộng tiện lợi.",
+      "coordinates": { "lat": 37.5665, "lng": 126.978 },
+      "bestTimeToVisit": "Tháng 4 - Tháng 5 (hoa anh đào), Tháng 9 - Tháng 11 (lá phong)",
+      "climate": "Bốn mùa rõ rệt, mùa đông lạnh dưới 0°C, mùa hè nóng ẩm và mưa nhiều",
+      "currency": "KRW (Won)",
+      "language": ["Tiếng Hàn", "Tiếng Anh (khu du lịch)"],
+      "timezone": "UTC+9",
+      "rating": 4.7,
+      "reviewCount": 5420,
+      "tags": ["văn hóa", "mua sắm", "ẩm thực", "K-pop", "thành phố"],
+      "averageDailyCost": { "budget": "70 USD", "midRange": "150 USD", "luxury": "350 USD" },
+      "images": {
+        "cover": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSXqVXYQQNYHDiDO4Kx5jfveXdDdszhKInJkxNZHsV3KKh0Q5yla5E6poI&s=10",
+        "gallery": [
+          "https://phuotvivu.com/blog/wp-content/uploads/2024/12/Seoul.webp"
+        ]
+      },
+      "attractions": [
+        {
+          "id": "gyeongbokgung",
+          "name": "Cung Gyeongbokgung",
+          "category": "Di tích lịch sử",
+          "description": "Cung điện chính của triều đại Joseon, xây dựng năm 1395. Du khách có thể mặc hanbok để được miễn phí vé và xem lễ đổi gác hằng ngày.",
+          "address": "161 Sajik-ro, Jongno-gu, Seoul",
+          "coordinates": { "lat": 37.5796, "lng": 126.977 },
+          "openingHours": "09:00 - 18:00 (đóng cửa thứ Ba)",
+          "ticketPrice": "3.000 KRW (miễn phí khi mặc hanbok)",
+          "duration": "2 - 3 giờ",
+          "rating": 4.7,
+          "image": "https://loremflickr.com/800/500/gyeongbokgung,palace?lock=211"
+        },
+        {
+          "id": "n-seoul-tower",
+          "name": "N Seoul Tower",
+          "category": "Điểm ngắm cảnh",
+          "description": "Tháp truyền hình trên đỉnh núi Namsan, đài quan sát cho toàn cảnh Seoul, nổi tiếng với hàng rào khóa tình yêu.",
+          "address": "105 Namsangongwon-gil, Yongsan-gu, Seoul",
+          "coordinates": { "lat": 37.5512, "lng": 126.9882 },
+          "openingHours": "10:00 - 23:00",
+          "ticketPrice": "Khoảng 21.000 KRW (đài quan sát, giá tham khảo)",
+          "duration": "2 giờ",
+          "rating": 4.5,
+          "image": "https://loremflickr.com/800/500/namsan,tower,seoul?lock=212"
+        },
+        {
+          "id": "bukchon-hanok",
+          "name": "Làng cổ Bukchon Hanok",
+          "category": "Văn hóa",
+          "description": "Khu phố với hàng trăm ngôi nhà hanok truyền thống trên con dốc nhỏ giữa Gyeongbokgung và Changdeokgung, rất đẹp để dạo bộ và chụp ảnh.",
+          "address": "Gahoe-dong, Jongno-gu, Seoul",
+          "coordinates": { "lat": 37.5826, "lng": 126.983 },
+          "openingHours": "Cả ngày (nên tham quan 09:00 - 17:00, giữ yên tĩnh)",
+          "ticketPrice": "Miễn phí",
+          "duration": "1 - 2 giờ",
+          "rating": 4.4,
+          "image": "https://loremflickr.com/800/500/bukchon,hanok?lock=213"
+        },
+        {
+          "id": "myeongdong",
+          "name": "Phố mua sắm Myeongdong",
+          "category": "Mua sắm - Ẩm thực",
+          "description": "Thiên đường mỹ phẩm và thời trang, buổi tối có chợ ẩm thực đường phố với đủ loại món ăn vặt Hàn Quốc.",
+          "address": "Myeongdong, Jung-gu, Seoul",
+          "coordinates": { "lat": 37.5636, "lng": 126.9822 },
+          "openingHours": "10:00 - 22:00",
+          "ticketPrice": "Miễn phí",
+          "duration": "2 - 4 giờ",
+          "rating": 4.5,
+          "image": "https://loremflickr.com/800/500/myeongdong,street?lock=214"
+        },
+        {
+          "id": "hongdae",
+          "name": "Khu Hongdae",
+          "category": "Giải trí - Nghệ thuật",
+          "description": "Khu phố sinh viên sôi động với nghệ sĩ đường phố, quán cà phê độc đáo, cửa hàng thời trang và câu lạc bộ đêm.",
+          "address": "Hongik-ro, Mapo-gu, Seoul",
+          "coordinates": { "lat": 37.5563, "lng": 126.9236 },
+          "openingHours": "Cả ngày, sôi động về đêm",
+          "ticketPrice": "Miễn phí",
+          "duration": "3 - 5 giờ",
+          "rating": 4.4,
+          "image": "https://loremflickr.com/800/500/hongdae,seoul?lock=215"
+        }
+      ],
+      "food": [
+        {
+          "name": "Tteokbokki",
+          "description": "Bánh gạo cay hầm với sốt gochujang, món ăn đường phố kinh điển.",
+          "priceRange": "4.000 - 8.000 KRW",
+          "image": "https://loremflickr.com/600/400/tteokbokki?lock=221"
+        },
+        {
+          "name": "Korean BBQ (Samgyeopsal)",
+          "description": "Thịt ba chỉ nướng ăn kèm rau xà lách, tỏi, sốt ssamjang.",
+          "priceRange": "15.000 - 25.000 KRW/phần",
+          "image": "https://loremflickr.com/600/400/korean,bbq?lock=222"
+        },
+        {
+          "name": "Bibimbap",
+          "description": "Cơm trộn rau, thịt bò, trứng và sốt gochujang, ăn ngon và cân bằng dinh dưỡng.",
+          "priceRange": "9.000 - 15.000 KRW",
+          "image": "https://loremflickr.com/600/400/bibimbap?lock=223"
+        },
+        {
+          "name": "Gà rán Hàn Quốc",
+          "description": "Gà chiên giòn hai lần, phủ sốt cay ngọt hoặc sốt tỏi mật ong, thường ăn kèm bia.",
+          "priceRange": "20.000 - 28.000 KRW/con",
+          "image": "https://loremflickr.com/600/400/korean,fried,chicken?lock=224"
+        }
+      ],
+      "hotels": [
+        {
+          "name": "Khách sạn Myeongdong (Demo)",
+          "category": "3 - 4 sao",
+          "pricePerNight": "90 - 160 USD",
+          "rating": 4.5,
+          "image": "https://loremflickr.com/600/400/seoul,hotel?lock=231"
+        },
+        {
+          "name": "Hanok Stay Bukchon (Demo)",
+          "category": "Nhà hanok truyền thống",
+          "pricePerNight": "120 - 220 USD",
+          "rating": 4.6,
+          "image": "https://loremflickr.com/600/400/hanok,stay?lock=232"
+        }
+      ],
+      "transport": {
+        "gettingThere": [
+          "Sân bay quốc tế Incheon (ICN), từ Việt Nam bay khoảng 5 - 5,5 giờ",
+          "Từ ICN vào trung tâm: tàu AREX khoảng 45 - 60 phút hoặc xe buýt sân bay"
+        ],
+        "gettingAround": ["Tàu điện ngầm Seoul Metro", "Xe buýt", "Thẻ T-money tiện lợi", "Taxi, Kakao T"]
+      },
+      "tips": [
+        "Cần xin K-ETA hoặc visa tùy quốc tịch và quy định hiện hành, hãy kiểm tra trước chuyến đi.",
+        "Mua thẻ T-money để đi tàu xe dễ dàng.",
+        "Ứng dụng Naver Map hoạt động tốt hơn Google Maps ở Hàn Quốc."
+      ]
+    },
+    {
+      "id": "tokyo",
+      "name": "Tokyo",
+      "nameLocal": "東京",
+      "country": "Nhật Bản",
+      "region": "Kantō",
+      "tagline": "Đô thị siêu hiện đại hòa quyện với những ngôi đền cổ kính",
+      "description": "Tokyo là thủ đô của Nhật Bản và là một trong những thành phố lớn nhất thế giới. Du khách có thể khám phá các ngã tư đông đúc, đền chùa linh thiêng, công viên yên bình, văn hóa anime, thời trang và nền ẩm thực đa dạng từ sushi đến ramen.",
+      "coordinates": { "lat": 35.6762, "lng": 139.6503 },
+      "bestTimeToVisit": "Tháng 3 - Tháng 4 (hoa anh đào), Tháng 10 - Tháng 11 (lá đỏ)",
+      "climate": "Bốn mùa, mùa hè nóng ẩm có mưa, mùa đông khô lạnh",
+      "currency": "JPY (Yên)",
+      "language": ["Tiếng Nhật", "Tiếng Anh (khu du lịch)"],
+      "timezone": "UTC+9",
+      "rating": 4.8,
+      "reviewCount": 8310,
+      "tags": ["thành phố", "văn hóa", "ẩm thực", "anime", "công nghệ"],
+      "averageDailyCost": { "budget": "80 USD", "midRange": "180 USD", "luxury": "400 USD" },
+      "images": {
+        "cover": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSKSemN_jd6T8xiE0WeGjfkBExSD13b-wwGze_mqOk6-CMd0Iy1fZT5hVE&s=10",
+        "gallery": [
+          "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQN8tLM9_m6a0Xrpf41BFyNmXwI4NbDj_upOJIEUxefUhKFFR6nubY6p_I&s=10",
+          "https://content.r9cdn.net/rimg/dimg/30/2c/c2817db5-city-21033-159036d7254.jpg?width=1366&height=768&crop=true"
+        ]
+      },
+      "attractions": [
+        {
+          "id": "senso-ji",
+          "name": "Chùa Senso-ji",
+          "category": "Đền chùa",
+          "description": "Ngôi chùa cổ nhất Tokyo ở khu Asakusa, nổi tiếng với cổng Kaminarimon và phố mua sắm Nakamise.",
+          "address": "2-3-1 Asakusa, Taito-ku, Tokyo",
+          "coordinates": { "lat": 35.7148, "lng": 139.7967 },
+          "openingHours": "06:00 - 17:00 (khu chùa chính, khuôn viên mở cả ngày)",
+          "ticketPrice": "Miễn phí",
+          "duration": "2 - 3 giờ",
+          "rating": 4.7,
+          "image": "https://loremflickr.com/800/500/sensoji,asakusa?lock=311"
+        },
+        {
+          "id": "shibuya-crossing",
+          "name": "Ngã tư Shibuya",
+          "category": "Địa danh đô thị",
+          "description": "Ngã tư đông đúc bậc nhất thế giới, hàng nghìn người băng qua cùng lúc mỗi lần đèn xanh. Nên lên Shibuya Sky để ngắm toàn cảnh.",
+          "address": "Shibuya, Tokyo",
+          "coordinates": { "lat": 35.6595, "lng": 139.7005 },
+          "openingHours": "Cả ngày",
+          "ticketPrice": "Miễn phí (Shibuya Sky có thu phí)",
+          "duration": "1 - 2 giờ",
+          "rating": 4.6,
+          "image": "https://loremflickr.com/800/500/shibuya,crossing?lock=312"
+        },
+        {
+          "id": "tokyo-skytree",
+          "name": "Tokyo Skytree",
+          "category": "Điểm ngắm cảnh",
+          "description": "Tháp phát sóng cao 634 m, một trong những công trình cao nhất thế giới, có đài quan sát và khu thương mại Solamachi.",
+          "address": "1-1-2 Oshiage, Sumida-ku, Tokyo",
+          "coordinates": { "lat": 35.7101, "lng": 139.8107 },
+          "openingHours": "10:00 - 21:00 (có thể thay đổi theo mùa)",
+          "ticketPrice": "Khoảng 2.100 - 3.100 JPY (giá tham khảo)",
+          "duration": "2 - 3 giờ",
+          "rating": 4.6,
+          "image": "https://loremflickr.com/800/500/tokyo,skytree?lock=313"
+        },
+        {
+          "id": "meiji-jingu",
+          "name": "Đền Meiji Jingu",
+          "category": "Đền thờ",
+          "description": "Ngôi đền Thần đạo nằm giữa khu rừng rộng lớn gần Harajuku, thờ Thiên hoàng Meiji, là nơi yên tĩnh giữa lòng thành phố.",
+          "address": "1-1 Yoyogikamizonocho, Shibuya-ku, Tokyo",
+          "coordinates": { "lat": 35.6764, "lng": 139.6993 },
+          "openingHours": "Từ lúc mặt trời mọc đến lặn",
+          "ticketPrice": "Miễn phí",
+          "duration": "1 - 2 giờ",
+          "rating": 4.7,
+          "image": "https://loremflickr.com/800/500/meiji,shrine,tokyo?lock=314"
+        },
+        {
+          "id": "shinjuku-gyoen",
+          "name": "Công viên Shinjuku Gyoen",
+          "category": "Công viên",
+          "description": "Công viên quốc gia rộng lớn với vườn Nhật, vườn Pháp, vườn Anh, là một trong những điểm ngắm hoa anh đào đẹp nhất Tokyo.",
+          "address": "11 Naitomachi, Shinjuku-ku, Tokyo",
+          "coordinates": { "lat": 35.6852, "lng": 139.71 },
+          "openingHours": "09:00 - 16:30 (đóng cửa thứ Hai)",
+          "ticketPrice": "500 JPY",
+          "duration": "2 - 3 giờ",
+          "rating": 4.6,
+          "image": "https://loremflickr.com/800/500/shinjuku,gyoen,garden?lock=315"
+        }
+      ],
+      "food": [
+        {
+          "name": "Sushi",
+          "description": "Cơm giấm kết hợp hải sản tươi sống. Có thể thử sushi băng chuyền giá rẻ hoặc omakase cao cấp.",
+          "priceRange": "1.500 - 30.000 JPY",
+          "image": "https://loremflickr.com/600/400/sushi?lock=321"
+        },
+        {
+          "name": "Ramen",
+          "description": "Mì nước dùng đậm đà với nhiều loại: shoyu, miso, tonkotsu, shio.",
+          "priceRange": "900 - 1.800 JPY",
+          "image": "https://loremflickr.com/600/400/ramen?lock=322"
+        },
+        {
+          "name": "Takoyaki",
+          "description": "Bánh bạch tuộc viên tròn nóng hổi phủ sốt, mayonnaise và cá bào.",
+          "priceRange": "500 - 800 JPY",
+          "image": "https://loremflickr.com/600/400/takoyaki?lock=323"
+        },
+        {
+          "name": "Tempura",
+          "description": "Hải sản và rau củ chiên giòn nhẹ, ăn kèm nước chấm tentsuyu.",
+          "priceRange": "1.200 - 4.000 JPY",
+          "image": "https://loremflickr.com/600/400/tempura?lock=324"
+        }
+      ],
+      "hotels": [
+        {
+          "name": "Business Hotel Shinjuku (Demo)",
+          "category": "3 sao",
+          "pricePerNight": "80 - 150 USD",
+          "rating": 4.3,
+          "image": "https://loremflickr.com/600/400/tokyo,hotel?lock=331"
+        },
+        {
+          "name": "Ryokan Asakusa (Demo)",
+          "category": "Ryokan truyền thống",
+          "pricePerNight": "150 - 300 USD",
+          "rating": 4.7,
+          "image": "https://loremflickr.com/600/400/ryokan,japan?lock=332"
+        }
+      ],
+      "transport": {
+        "gettingThere": [
+          "Sân bay quốc tế Narita (NRT) và Haneda (HND)",
+          "Từ Việt Nam bay khoảng 5,5 - 6 giờ",
+          "Từ Narita vào trung tâm: Narita Express hoặc Skyliner khoảng 40 - 60 phút"
+        ],
+        "gettingAround": ["Tàu JR và Tokyo Metro", "Thẻ Suica/Pasmo", "Xe buýt", "Taxi (giá cao)"]
+      },
+      "tips": [
+        "Tải ứng dụng Google Maps hoặc Navitime để tra tàu điện.",
+        "Mang theo tiền mặt vì nhiều quán nhỏ chưa nhận thẻ.",
+        "Giữ yên lặng trên tàu và không ăn uống khi đi bộ ở nhiều khu vực."
+      ]
+    }
+  ]
+}

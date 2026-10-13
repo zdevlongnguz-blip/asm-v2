@@ -1,5 +1,6 @@
 import axios from 'axios';
 import vietnamProvinces from '../../data/vietnamProvinces.json' with { type: 'json' };
+import cityData from '../../data/cities.json' with { type: 'json' };
 import { logger } from '../utils/logger.js';
 
 const coordinateCache = new Map();
@@ -48,9 +49,20 @@ function findOfflineCoordinates(input) {
     )
   );
 
-  if (!match) return null;
+  if (match) {
+    return { lat: Number(match.lat), lon: Number(match.lon) };
+  }
 
-  return { lat: Number(match.lat), lon: Number(match.lon) };
+  const destination = cityData.destinations.find((item) =>
+    [item.name, item.nameLocal].filter(Boolean).some((name) => normalizeLocationName(name) === target)
+  );
+
+  if (!destination?.coordinates) return null;
+
+  return {
+    lat: Number(destination.coordinates.lat),
+    lon: Number(destination.coordinates.lng),
+  };
 }
 
 // Lấy tọa độ theo tên địa điểm.

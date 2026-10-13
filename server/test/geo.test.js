@@ -16,3 +16,9 @@ test('getCoordinatesByName normalizes alias names', async () => {
   assert.equal(result.lat, 10.8231);
   assert.equal(result.lon, 106.6297);
 });
+
+test('getCoordinatesByName resolves international destinations from cities.json', async () => {
+  const result = await getCoordinatesByName('Tokyo');
+
+  assert.deepEqual(result, { lat: 35.6762, lon: 139.6503 });
+});

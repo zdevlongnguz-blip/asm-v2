@@ -1,104 +1,118 @@
 # AI Travel Assistant Service
 
-Tài liệu này giải thích service trợ lý du lịch trong `src/services/ai.js`: Gemini nhận yêu cầu như thế nào, khi nào gọi tool, dữ liệu tool được gửi lại ra sao, và API trả kết quả gì cho Vue.
+Tài liệu này mô tả hệ thống AI hiện tại trong `server/src/services/ai.js` và route `server/src/routes/ai.js`. Đây là luồng tool-calling thực tế của dự án, không phải mô hình nền tảng cũ.
 
-## 1. Service làm gì?
+## 1. Mục tiêu của service
 
-Service nhận một câu hỏi tự nhiên, ví dụ:
+Service nhận một prompt tiếng Việt như:
 
 > Dự báo thời tiết 3 ngày ở Hà Nội và giới thiệu về Hà Nội.
 
-Gemini quyết định cần lấy dữ liệu nào. Nếu cần, service gọi các hàm nội bộ để lấy thời tiết hoặc tóm tắt Wikipedia. Sau đó service gửi dữ liệu đó lại cho Gemini để tạo câu trả lời cuối cùng.
+Sau đó:
+- gửi prompt lên Gemini
+- quyết định có cần tool hay không
+- nếu cần, gọi các service nội bộ để lấy dữ liệu
+- gửi kết quả tool lại cho Gemini để tổng hợp câu trả lời cuối
+- trả dữ liệu về cho frontend ở dạng JSON hoặc SSE
 
-Các tool hiện có:
+## 2. Cấu hình hiện tại
 
-| Tool | Dùng để lấy | Tham số chính |
-| --- | --- | --- |
-| `getCurrentWeatherByCityName` | Thời tiết hiện tại | `cityName` |
-| `getWeatherForecastByCityName` | Dự báo thời tiết | `cityName`, `days` tùy chọn |
-| `getWikiSummary` | Tóm tắt Wikipedia về địa điểm | `title` |
-
-Service không để Gemini tự đoán dữ liệu thời tiết. Dữ liệu thời tiết phải đến từ weather service. Phần giao diện có thể dùng `toolResults` để hiển thị thành thẻ thời tiết và thẻ dự báo.
-
-## 2. Cấu hình
-
-Server cần có `GEMINI_API_KEY` trong `server/.env`:
+Server cần biến môi trường `GEMINI_API_KEY` trong `server/.env`:
 
 ```env
 GEMINI_API_KEY=your_gemini_api_key
 ```
 
-Có thể chọn model bằng biến tùy chọn:
+Model mặc định nếu không khai báo `GEMINI_MODEL`:
 
 ```env
 GEMINI_MODEL=gemini-3-flash-preview
 ```
 
-Nếu không khai báo `GEMINI_MODEL`, service dùng `gemini-3-flash-preview`. Sau khi sửa `.env`, cần khởi động lại server để biến môi trường được nạp lại.
+Sau khi sửa `.env`, cần khởi động lại server để nạp lại biến môi trường.
 
-Gemini client được khởi tạo lần đầu khi service cần gọi Gemini. Nếu thiếu API key, service ném lỗi nội bộ; `askTravelAssistant` bắt lỗi đó và trả về câu trả lời dự phòng.
+Nếu thiếu API key, service sẽ log warning và trả fallback answer thay vì ném lỗi trực tiếp cho client. Route `/api/ai` vẫn trả `200` trong trường hợp này.
 
-## 3. Luồng xử lý tổng quan
+## 3. System prompt và chính sách tool
+
+`SYSTEM_PROMPT` hiện tại quy định rõ ràng:
+- chỉ gọi tool thời tiết khi người dùng hỏi rõ về thời tiết, dự báo, mưa, nhiệt độ, điều kiện thời tiết
+- không gọi weather tool chỉ vì tên địa điểm xuất hiện trong câu hỏi
+- khi cần thông tin về địa điểm, gọi `getWikiSummary`
+- chỉ gọi những tool cần thiết
+- không bịa dữ liệu
+- nếu tool lỗi, vẫn trả lời phần có thể trả lời và nêu rõ phần thiếu
+
+Điểm quan trọng: weather tool là opt-in theo ý định người dùng, không phải bắt buộc cho mọi câu hỏi có địa điểm.
+
+## 4. Tool hiện có
+
+Service khai báo 3 tool thực tế trong `TOOLS`:
+
+| Tool | Mục đích | Tham số | Ghi chú |
+| --- | --- | --- | --- |
+| `getCurrentWeatherByCityName` | Lấy thời tiết hiện tại | `{ cityName: string }` | Gọi qua `getCurrentWeatherByCityName()` |
+| `getWeatherForecastByCityName` | Lấy dự báo vài ngày | `{ cityName: string, days?: number }` | Dùng trong UI weather cards |
+| `getWikiSummary` | Lấy tóm tắt địa điểm | `{ title: string }` | Trả về `{ title, summary, thumbnail }`, nhưng gửi lên model chỉ có `summary` |
+
+### Quy tắc về Wikipedia
+
+`getWikiSummary` không trả nguyên kiểu string cho model. Nó thực chất gọi `getWikiSummaryWithThumbnail(title)`, trả về đối tượng có dạng:
+
+```json
+{
+  "title": "Hà Nội",
+  "summary": "Hà Nội là thủ đô của Việt Nam...",
+  "thumbnail": { "source": "https://...", "width": 300, "height": 200 }
+}
+```
+
+Tuy nhiên, ở phần gửi lại cho Gemini, service dùng:
+
+```js
+toModelResponse: (result) => result?.summary ?? result
+```
+
+Nghĩa là model chỉ nhận `summary` text, còn metadata hình ảnh vẫn giữ lại trong `toolResults` cho frontend hiển thị.
+
+## 5. Luồng xử lý thực tế
 
 ```mermaid
 sequenceDiagram
-    participant Vue
-    participant Route as POST /api/ai
-    participant Service as ai.js
-    participant Gemini
-    participant Tools as Weather / Wikipedia services
+  participant Vue
+  participant Route as POST /api/ai
+  participant Service as ai.js
+  participant Gemini
+  participant Tools as Weather / Wikipedia services
 
-    Vue->>Route: { prompt }
-    Route->>Service: askTravelAssistant(prompt)
-    Service->>Gemini: prompt + system instruction + tool declarations
-    Gemini-->>Service: câu trả lời hoặc yêu cầu gọi tool
-    loop Tối đa 4 vòng gọi và thực thi tool
-        Service->>Tools: chạy từng tool được yêu cầu
-        Tools-->>Service: dữ liệu hoặc lỗi
-        Service->>Gemini: lịch sử hội thoại + functionResponse
-        Gemini-->>Service: yêu cầu tool tiếp theo hoặc câu trả lời
-    end
-    opt Đã dùng đủ 4 vòng tool mà Gemini vẫn cần tổng hợp
-      Service->>Gemini: lịch sử hội thoại, không khai báo tools
-      Gemini-->>Service: câu trả lời cuối
-    end
-    Service-->>Route: answer, usedTools, toolResults, toolErrors
-    Route-->>Vue: JSON response
+  Vue->>Route: { prompt }
+  Route->>Service: askTravelAssistant(prompt)
+  Service->>Gemini: prompt + system instruction + tool declarations
+  Gemini-->>Service: câu trả lời hoặc yêu cầu gọi tool
+  loop Tối đa 4 vòng thực thi tool
+    Service->>Tools: chạy các tool được yêu cầu (có thể song song)
+    Tools-->>Service: dữ liệu hoặc lỗi
+    Service->>Gemini: lịch sử hội thoại + functionResponse
+    Gemini-->>Service: yêu cầu tool tiếp theo hoặc câu trả lời
+  end
+  opt Cần lượt tổng hợp ở step giới hạn
+    Service->>Gemini: lịch sử hội thoại, không khai báo tools
+    Gemini-->>Service: câu trả lời cuối hoặc fallback nếu vẫn yêu cầu tool
+  end
+  Service-->>Route: answer, usedTools, toolResults, toolErrors
+  Route-->>Vue: JSON response
 ```
 
-### Các bước chi tiết
+### 5.1 Request không streaming
 
-1. Route nhận `prompt`, trim khoảng trắng và từ chối prompt rỗng bằng HTTP `400`.
-2. `askTravelAssistant` kiểm tra prompt, sau đó dùng cache theo prompt đã lowercase trong 5 phút.
-3. `chatWithTools` gửi prompt đến Gemini cùng `SYSTEM_PROMPT` và khai báo ba tool.
-4. Nếu Gemini trả câu trả lời văn bản mà không yêu cầu tool, service trả lời ngay.
-5. Nếu Gemini yêu cầu một hoặc nhiều tool, service thực thi chúng song song.
-6. Kết quả từng tool được thêm vào hội thoại dưới dạng `functionResponse`.
-7. Service gửi toàn bộ lịch sử hội thoại trở lại Gemini để Gemini tổng hợp hoặc yêu cầu tool tiếp.
-8. Sau tối đa bốn vòng thực thi tool, service gửi thêm một lượt tổng hợp không kèm khai báo tools.
-
-`step` bắt đầu từ 0, nên `MAX_STEPS = 4` **không có nghĩa là chỉ gọi Gemini 4 lần**. Vòng lặp có tối đa 5 lượt gọi Gemini, được đánh số 0–4:
-
-| Giá trị `step` | Lượt gọi Gemini | Có khai báo tools? | Nếu Gemini yêu cầu tool |
-| --- | ---: | --- | --- |
-| 0 | 1 | Có | Thực thi vòng tool thứ 1 |
-| 1 | 2 | Có | Thực thi vòng tool thứ 2 |
-| 2 | 3 | Có | Thực thi vòng tool thứ 3 |
-| 3 | 4 | Có | Thực thi vòng tool thứ 4 |
-| 4 | 5 | Không | Không thể gọi thêm tool; yêu cầu tool lúc này bị xem là vượt giới hạn |
-
-Một **vòng tool** gồm một phản hồi Gemini yêu cầu tool và việc service thực thi các tool trong phản hồi đó. Gemini có thể yêu cầu nhiều tool trong cùng một vòng; các tool đó chạy song song. Vì vậy “tối đa 4 vòng tool” không đồng nghĩa “tối đa 4 tool đơn lẻ”.
-
-Service dừng sớm ngay khi Gemini trả văn bản và không yêu cầu tool. Ví dụ thường gặp: lượt gọi Gemini thứ nhất yêu cầu dự báo và Wikipedia; service chạy cả hai tool song song; lượt gọi thứ hai nhận kết quả và trả lời bằng văn bản. Khi đó chỉ dùng một vòng tool và hai lượt gọi Gemini. Lượt thứ năm chỉ xảy ra nếu cả bốn vòng trước đều tiếp tục yêu cầu tool.
-
-## 4. Ví dụ thực tế: dự báo 3 ngày và giới thiệu Hà Nội
-
-Vue gửi request:
+Route mount ở `/api/ai`:
 
 ```http
 POST /api/ai
 Content-Type: application/json
 ```
+
+Request mẫu:
 
 ```json
 {
@@ -106,9 +120,40 @@ Content-Type: application/json
 }
 ```
 
-### Lượt đầu gửi Gemini
+Luồng xử lý:
+1. Route kiểm tra prompt rỗng → HTTP 400 nếu thiếu.
+2. Gọi `askTravelAssistant(prompt)`.
+3. `askTravelAssistant` dùng cache theo prompt (TTL 5 phút) nếu hợp lệ.
+4. `chatWithTools()` gửi prompt + `SYSTEM_PROMPT` + tool declarations cho Gemini.
+5. Nếu Gemini không yêu cầu tool, trả lời ngay.
+6. Nếu Gemini yêu cầu tool, service thực thi tool đó theo `Promise.all()` để chạy song song khi có nhiều tool.
+7. Kết quả tool được gắn vào `functionResponse` và gửi lại cho Gemini.
+8. Lặp lại tối đa `MAX_STEPS = 4` vòng tool.
+9. Nếu vẫn tiếp tục yêu cầu tool sau giới hạn, service dừng và trả fallback.
 
-Gemini nhận prompt ban đầu, `SYSTEM_PROMPT`, model và khai báo các function mà nó được phép yêu cầu. Trong đó có mô tả tham số của từng tool. Gemini có thể quyết định yêu cầu hai tool:
+Prompt thiếu hoặc chỉ có khoảng trắng nhận HTTP `400` và không gọi service:
+
+```json
+{ "error": "Thiếu prompt" }
+```
+
+`step` bắt đầu từ 0. Vì vòng lặp chạy với điều kiện `step <= MAX_STEPS`, `MAX_STEPS = 4` cho phép tối đa 5 lượt gọi Gemini, được đánh số từ 0 đến 4. Tools chỉ được khai báo khi `step < MAX_STEPS`, nên lượt ở `step = 4` là lượt tổng hợp cuối không có quyền gọi thêm tool.
+
+| Giá trị `step` | Lượt gọi Gemini | Có khai báo tools? | Nếu Gemini yêu cầu tool |
+| --- | ---: | --- | --- |
+| 0 | 1 | Có | Thực thi vòng tool thứ 1 |
+| 1 | 2 | Có | Thực thi vòng tool thứ 2 |
+| 2 | 3 | Có | Thực thi vòng tool thứ 3 |
+| 3 | 4 | Có | Thực thi vòng tool thứ 4 |
+| 4 | 5 | Không | Không gọi tool thêm; yêu cầu tool ở lượt này sẽ dẫn đến fallback |
+
+Một vòng tool gồm một lượt Gemini yêu cầu tool và việc service thực thi các tool được yêu cầu trong lượt đó. Gemini có thể yêu cầu nhiều tool cùng lúc; các tool này chạy song song bằng `Promise.all()`. Do đó, tối đa bốn vòng tool không có nghĩa là tối đa bốn tool đơn lẻ.
+
+Service dừng sớm ngay khi Gemini trả lời bằng văn bản mà không yêu cầu tool. Ví dụ, Gemini có thể yêu cầu tool thời tiết và Wikipedia cùng lượt, service chạy cả hai song song, rồi Gemini trả lời ở lượt kế tiếp. Trường hợp đó dùng một vòng tool và hai lượt gọi Gemini; lượt thứ năm chỉ cần thiết nếu bốn vòng trước đều tiếp tục yêu cầu tool.
+
+### Ví dụ một vòng gọi tool
+
+Với prompt `Dự báo thời tiết 3 ngày ở Hà Nội và giới thiệu về Hà Nội`, Gemini có thể yêu cầu hai tool:
 
 ```json
 [
@@ -123,40 +168,7 @@ Gemini nhận prompt ban đầu, `SYSTEM_PROMPT`, model và khai báo các funct
 ]
 ```
 
-Đây là ví dụ minh họa quyết định của model; số lượng và thứ tự tool thực tế do Gemini chọn.
-
-### Service thực thi tool
-
-Tool dự báo gọi `getWeatherForecastByCityName('Hà Nội', 3)`. Tool Wikipedia gọi `getWikiSummary('Hà Nội')`. Hai tool trong cùng một lượt được chạy song song.
-
-Dữ liệu dự báo có dạng:
-
-```json
-{
-  "cityName": "Hà Nội",
-  "days": [
-    {
-      "date": "2026-10-03",
-      "tempMax": 31,
-      "tempMin": 25,
-      "description": "Mưa nhẹ",
-      "icon": "bi bi-cloud-rain"
-    }
-  ]
-}
-```
-
-`days` trong ví dụ được rút gọn còn một phần tử để dễ đọc; request ba ngày sẽ yêu cầu ba ngày dự báo nếu API nguồn trả đủ dữ liệu. `icon` là class Bootstrap Icons tra theo weather code, dùng trực tiếp ở giao diện.
-
-Tool Wikipedia trả về một chuỗi tóm tắt, ví dụ:
-
-```text
-Hà Nội là thủ đô của Việt Nam...
-```
-
-### Gửi kết quả tool lại cho Gemini
-
-Service giữ nguyên prompt ban đầu và phản hồi trước đó của Gemini, rồi thêm kết quả tool thành các `functionResponse`:
+Đây là ví dụ minh họa; số lượng và thứ tự tool thực tế do Gemini chọn. Service giữ prompt và phản hồi trước đó của Gemini, sau đó thêm kết quả tool vào hội thoại dưới dạng `functionResponse`:
 
 ```js
 contents.push({
@@ -178,86 +190,154 @@ contents.push({
 });
 ```
 
-Ở lần gọi Gemini tiếp theo, service gửi **toàn bộ `contents`**: prompt ban đầu, các phản hồi function-call của Gemini, và kết quả tool. Vì thế Gemini có đủ ngữ cảnh để viết câu trả lời cuối.
+Ở lượt Gemini tiếp theo, service gửi toàn bộ `contents`, gồm prompt ban đầu, phản hồi function-call của Gemini và kết quả tool. Với Wikipedia, dữ liệu gốc trong `toolResults` có thể gồm `title`, `summary`, `thumbnail`, nhưng `functionResponse` gửi cho model chỉ chứa `summary`.
 
-Nếu các vòng tool kết thúc trước giới hạn, Gemini có thể vừa tổng hợp vừa được quyền yêu cầu tool tiếp. Nếu đã dùng đủ bốn vòng, lượt cuối không khai báo `tools`, nên Gemini chỉ có thể tổng hợp từ dữ liệu đã nhận.
+### 5.2 Request streaming
 
-## 5. Số ngày dự báo
+Route SSE mount ở `/api/ai/stream`:
 
-Các giới hạn và mặc định được định nghĩa tập trung trong `src/services/weather.js`:
-
-- Tối thiểu: `MIN_FORECAST_DAYS` = 1.
-- Tối đa: `MAX_FORECAST_DAYS` = 7.
-- Mặc định: `DEFAULT_FORECAST_DAYS` = 7.
-
-AI tool dùng cùng các hằng số này. Nếu model truyền `days`, service chuyển giá trị đó cho weather service; weather service chuẩn hóa và giới hạn giá trị trong khoảng 1–7. Nếu không truyền, dự báo mặc định 7 ngày.
-
-Ví dụ:
-
-| Tham số tool | Kết quả dự kiến |
-| --- | --- |
-| `{ cityName: "Hà Nội" }` | 7 ngày |
-| `{ cityName: "Hà Nội", days: 3 }` | 3 ngày |
-| `{ cityName: "Hà Nội", days: 20 }` | Giới hạn còn 7 ngày |
-| `{ cityName: "Hà Nội", days: 0 }` | Dùng mặc định 7 ngày |
-
-Tool schema chỉ mô tả cho Gemini cách gọi tool; việc chuẩn hóa thật sự được weather service thực hiện.
-
-## 6. API và response
-
-Route được mount ở `/api/ai`, nên endpoint đầy đủ là `POST /api/ai`.
-
-Prompt thiếu hoặc chỉ có khoảng trắng trả về HTTP `400`:
-
-```json
-{ "error": "Thiếu prompt" }
+```http
+POST /api/ai/stream
+Content-Type: application/json
 ```
 
-Khi service xử lý được request, response có cấu trúc:
+Dòng sự kiện thực tế được route phát ra:
+- `status`
+- `tool_start`
+- `tool_result`
+- `tool_error`
+- `token`
+- `done`
+- `error`
+
+Ví dụ dạng event:
+
+```text
+event: status
+data: {"message":"Đang phân tích yêu cầu..."}
+
+event: tool_start
+data: {"tool":"getWeatherForecastByCityName","args":{"cityName":"Hà Nội","days":3}}
+
+event: tool_result
+data: {"tool":"getWeatherForecastByCityName","args":{"cityName":"Hà Nội","days":3},"data":{"cityName":"Hà Nội","days":[...]}}
+
+event: token
+data: {"text":"Hà Nội là..."}
+
+event: done
+data: {"answer":"...","usedTools":[...],"toolResults":[...],"toolErrors":[]}
+```
+
+## 6. Response shape thực tế
+
+Response JSON của `POST /api/ai` có dạng:
 
 ```json
 {
-  "answer": "Dự báo cho Hà Nội có mưa nhẹ. Hà Nội là thủ đô của Việt Nam...",
-  "usedTools": [
-    "getWeatherForecastByCityName",
-    "getWikiSummary"
-  ],
+  "answer": "Hà Nội có ...",
+  "usedTools": ["getWeatherForecastByCityName", "getWikiSummary"],
   "toolResults": [
     {
       "tool": "getWeatherForecastByCityName",
       "args": { "cityName": "Hà Nội", "days": 3 },
       "data": {
         "cityName": "Hà Nội",
-        "days": []
+        "days": [
+          {
+            "date": "2026-10-13",
+            "tempMax": 32,
+            "tempMin": 26,
+            "description": "Mưa nhẹ",
+            "icon": "bi bi-cloud-rain"
+          }
+        ]
       }
     },
     {
       "tool": "getWikiSummary",
       "args": { "title": "Hà Nội" },
-      "data": "Tóm tắt Wikipedia..."
+      "data": {
+        "title": "Hà Nội",
+        "summary": "Hà Nội là thủ đô của Việt Nam...",
+        "thumbnail": null
+      }
     }
   ],
   "toolErrors": []
 }
 ```
 
-Các giá trị trong ví dụ là minh họa. Trong response thật, `days` chứa dữ liệu dự báo nhận được từ Open-Meteo.
+### Ý nghĩa của từng trường
 
-- `answer`: phần Gemini tổng hợp để hiển thị cho người dùng.
-- `usedTools`: tên các tool chạy thành công.
-- `toolResults`: dữ liệu thô theo từng tool; Vue dùng trường này để dựng thẻ thời tiết/dự báo.
-- `toolErrors`: lỗi riêng của từng tool. Lỗi một tool không nhất thiết làm mất kết quả từ tool khác.
+- `answer`: câu trả lời tổng hợp từ Gemini
+- `usedTools`: danh sách tool chạy thành công
+- `toolResults`: dữ liệu gốc của từng tool, dành cho frontend render
+- `toolErrors`: lỗi của từng tool, nếu có
 
-Nếu Gemini thiếu key, hết quota, lỗi mạng, vượt giới hạn tool hoặc không tạo được câu trả lời, `askTravelAssistant` ghi log và trả câu fallback với các mảng rỗng. Trường hợp này hiện vẫn được route trả bằng HTTP `200`; xem `src/routes/ai.js` và `src/services/ai.js`.
+## 7. Dữ liệu thời tiết và giới hạn
 
-### Streaming response cho Vue
+Dự báo thời tiết ở `server/src/services/weather.js` có các hằng số:
 
-Endpoint streaming trả tiến trình xử lý, kết quả tool và từng phần văn bản Gemini tạo ra. Dùng endpoint SSE riêng:
+- `MIN_FORECAST_DAYS = 1`
+- `MAX_FORECAST_DAYS = 7`
+- `DEFAULT_FORECAST_DAYS = 7`
 
-```http
-POST /api/ai/stream
-Content-Type: application/json
+`normalizeForecastDays()` đảm bảo:
+- ngày 0 → dùng mặc định 7
+- số âm → cắt về 1
+- quá 7 → cắt về 7
+
+Vì vậy tool `getWeatherForecastByCityName(cityName, days)` luôn được chuẩn hóa trong khoảng 1–7 trước khi gọi Open-Meteo.
+
+| Tham số tool | Kết quả dự kiến |
+| --- | --- |
+| `{ cityName: "Hà Nội" }` | 7 ngày mặc định |
+| `{ cityName: "Hà Nội", days: 3 }` | 3 ngày |
+| `{ cityName: "Hà Nội", days: 20 }` | Giới hạn còn 7 ngày |
+| `{ cityName: "Hà Nội", days: 0 }` | Dùng mặc định 7 ngày |
+
+Tool schema mô tả cách Gemini có thể gọi tool; việc chuẩn hóa thực tế do weather service thực hiện.
+
+## 8. Fallback và lỗi
+
+Khi bất kỳ điều kiện nào sau đây xảy ra:
+- thiếu `GEMINI_API_KEY`
+- model trả lỗi
+- quota / mạng / timeout
+- Gemini tiếp tục yêu cầu tool quá số vòng cho phép
+- model không trả văn bản
+
+service sẽ log warning và trả:
+
+```json
+{
+  "answer": "Mình chưa trả lời được ngay lúc này, bạn thử lại sau nhé.",
+  "usedTools": [],
+  "toolResults": [],
+  "toolErrors": []
+}
 ```
+
+## 9. Khuyến nghị khi làm việc với service này
+
+- Không giả định AI sẽ luôn sử dụng weather tool: nó chỉ gọi khi người dùng hỏi rõ ràng về thời tiết.
+- Khi cần render dữ liệu trong UI, ưu tiên dùng `toolResults` thay vì chỉ đọc `answer`.
+- Khi thêm tool mới, cần cập nhật cả:
+  1. `TOOLS` object trong `ai.js`
+  2. `FUNCTION_DECLARATIONS`
+  3. `toModelResponse` nếu cần ép kiểu dữ liệu riêng cho model
+  4. route/UX nếu muốn hiển thị thêm metadata trong giao diện
+
+## 10. Kết luận
+
+Service AI hiện tại của dự án là một layer tool-calling trung gian giữa Gemini và các service dữ liệu. Nó không chỉ trả lời văn bản, mà còn quản lý trạng thái, kết quả tool, và stream tiến độ cho Vue. Trên thực tế, luồng chính đang là:
+
+Gemini → tool weather/wiki → dữ liệu thực → tổng hợp câu trả lời → return JSON hoặc SSE
+
+Đây là nền tảng hoạt động của trang trợ lý du lịch và là điểm cần cập nhật nếu dự án mở rộng thêm tool mới hoặc thay đổi mô hình prompt.
+
+## Ví dụ luồng hoạt động thực tế
 
 ```json
 { "prompt": "Dự báo thời tiết 3 ngày ở Hà Nội" }
@@ -267,31 +347,40 @@ Response giữ kết nối HTTP mở và gửi các frame theo định dạng `t
 
 ```text
 event: status
+data: {"message":"Đã nhận yêu cầu, đang kết nối với trợ lý..."}
+
+event: status
 data: {"type":"status","message":"Đang phân tích yêu cầu..."}
 
+event: tool_start
+data: {"type":"tool_start","tool":"getWeatherForecastByCityName","args":{"cityName":"Hà Nội","days":3}}
+
+event: tool_result
+data: {"type":"tool_result","result":{"tool":"getWeatherForecastByCityName","args":{"cityName":"Hà Nội","days":3},"data":{"cityName":"Hà Nội","days":[...]}}}
+
 event: token
-data: {"type":"token","text":"Dự báo cho Hà Nội"}
+data: {"type":"token","text":"Hà Nội có "}
+
+event: token
+data: {"type":"token","text":"mưa nhẹ trong 3 ngày tới."}
 
 event: done
-data: {"answer":"Dự báo cho Hà Nội...","usedTools":[],"toolResults":[],"toolErrors":[]}
+data: {"answer":"Hà Nội có mưa nhẹ trong 3 ngày tới.","usedTools":["getWeatherForecastByCityName"],"toolResults":[...],"toolErrors":[]}
 ```
 
-#### Cách đọc tiến trình
-
-Luồng hoạt động theo thứ tự sau:
+### Cách đọc tiến trình
 
 1. Route kiểm tra `prompt`. Prompt rỗng nhận HTTP `400` JSON và không mở luồng SSE.
 2. Với prompt hợp lệ, route mở response `text/event-stream` và gửi `status` với thông báo `Đã nhận yêu cầu, đang kết nối với trợ lý...`.
-3. Service bắt đầu một lượt gọi Gemini và gửi `status` là `Đang phân tích yêu cầu...`. Đây là nhãn do ứng dụng đặt trước khi chờ Gemini trả kết quả; nó không phải phần trăm tiến độ hay trạng thái suy nghĩ nội bộ của Gemini.
-4. Trong lúc Gemini trả nội dung, mỗi phần text nhận được được gửi thành một event `token`. Nếu Gemini yêu cầu tool, service gửi `tool_start`, chạy tool, rồi gửi `tool_result` hoặc `tool_error`.
-5. Sau khi tool chạy xong, kết quả được gửi lại cho Gemini làm ngữ cảnh của lượt tiếp theo. Service lại phát `Đang phân tích yêu cầu...` trước lượt đó. Nhiều tool trong cùng lượt được chạy song song; vì vậy thứ tự các kết quả phụ thuộc tool nào hoàn tất trước.
-6. Khi Gemini không yêu cầu tool nữa, service trả câu trả lời cuối. Route gửi một event `done` chứa câu trả lời cùng danh sách tool và đóng response.
+3. Service gửi `status` là `Đang phân tích yêu cầu...` trước mỗi lượt Gemini có thể gọi tool. Đây là nhãn trạng thái do ứng dụng đặt, không phải phần trăm tiến độ hay trạng thái suy nghĩ nội bộ của Gemini.
+4. Trong lúc Gemini trả nội dung, mỗi phần text nhận được được gửi thành một event `token`. Nếu lượt đó chuyển sang gọi tool sau khi đã có text tạm, service phát event `reset` để frontend xóa đoạn text đó.
+5. Nếu Gemini yêu cầu tool, service gửi `tool_start`, chạy các tool song song, rồi gửi `tool_result` hoặc `tool_error`. Thứ tự kết quả phụ thuộc tool nào hoàn tất trước.
+6. Sau khi tool chạy xong, kết quả được gửi lại cho Gemini làm ngữ cảnh của lượt tiếp theo. Ở bước giới hạn (`step = 4`), service phát `Đang tổng hợp câu trả lời...` và không khai báo tools.
+7. Khi Gemini không yêu cầu tool nữa, service trả câu trả lời cuối. Route gửi một event `done` chứa câu trả lời cùng danh sách tool và đóng response.
 
-Mỗi lượt trước giới hạn tool đều được gắn nhãn `Đang phân tích yêu cầu...`. Với `MAX_STEPS = 4`, lượt ở bước giới hạn được gắn `Đang tổng hợp câu trả lời...` và không khai báo tool cho Gemini. Đây vẫn là trạng thái do code quy định, không phải Gemini báo rằng nó đang ở một pha suy luận cụ thể. Vì thế giao diện không thể hiện chính xác Gemini còn bao lâu mới trả lời.
+Các thông báo trạng thái chỉ mô tả giai đoạn do code quy định; giao diện không thể hiện chính xác Gemini còn bao lâu mới trả lời. Event `status` đầu tiên được phát từ route, còn status từng lượt, tool, token và reset được phát từ service.
 
-Event `status` khi bắt đầu request được phát từ `src/routes/ai.js`; các trạng thái từng lượt, tool và token được phát từ `src/services/ai.js`. Vue đọc từng frame từ `response.body` và cập nhật `statusMessage`; chấm tiến trình chỉ sáng theo cờ `loading` trong lúc request chưa kết thúc.
-
-#### Ví dụ gọi thực tế
+### Ví dụ gọi thực tế
 
 Có thể kiểm tra luồng từ terminal khi server đang chạy:
 
@@ -301,11 +390,11 @@ curl -N http://localhost:3000/api/ai/stream \
   -d '{"prompt":"Dự báo thời tiết 3 ngày ở Hà Nội và giới thiệu về Hà Nội"}'
 ```
 
-Ví dụ dưới đây minh họa một lần Gemini chọn cả tool dự báo thời tiết lẫn Wikipedia. Nội dung text, đối số tool, dữ liệu trả về và thứ tự hoàn tất có thể khác theo câu hỏi, phản hồi dịch vụ bên ngoài và quyết định của Gemini:
+Ví dụ dưới đây minh họa một lần Gemini chọn cả tool dự báo thời tiết lẫn Wikipedia:
 
 ```text
 event: status
-data: {"type":"status","message":"Đã nhận yêu cầu, đang kết nối với trợ lý..."}
+data: {"message":"Đã nhận yêu cầu, đang kết nối với trợ lý..."}
 
 event: status
 data: {"type":"status","message":"Đang phân tích yêu cầu..."}
@@ -320,7 +409,7 @@ event: tool_result
 data: {"type":"tool_result","result":{"tool":"getWeatherForecastByCityName","args":{"cityName":"Hà Nội","days":3},"data":{"cityName":"Hà Nội","days":[...]}}}
 
 event: tool_result
-data: {"type":"tool_result","result":{"tool":"getWikiSummary","args":{"title":"Hà Nội"},"data":{"title":"Hà Nội","extract":"..."}}}
+data: {"type":"tool_result","result":{"tool":"getWikiSummary","args":{"title":"Hà Nội"},"data":{"title":"Hà Nội","summary":"...","thumbnail":null}}}
 
 event: status
 data: {"type":"status","message":"Đang phân tích yêu cầu..."}
@@ -329,42 +418,44 @@ event: token
 data: {"type":"token","text":"Hà Nội có "}
 
 event: token
-data: {"type":"token","text":"bề dày lịch sử..."}
+data: {"type":"token","text":"bề dày lịch sử và văn hóa phong phú."}
 
 event: done
 data: {"answer":"Hà Nội có bề dày lịch sử...","usedTools":["getWeatherForecastByCityName","getWikiSummary"],"toolResults":[...],"toolErrors":[]}
 ```
 
-Các dòng `data` ở trên là JSON. Mỗi event kết thúc bằng một dòng trống; client đọc `event:` làm tên loại sự kiện và parse JSON sau `data:`. `token` chỉ là một mảnh văn bản, không nhất thiết tương ứng một từ hay một câu; ghép các mảnh theo thứ tự để dựng câu trả lời. Payload `done` là kết quả cuối cùng, còn `tool_result` cho phép giao diện cập nhật dữ liệu tool ngay khi có.
-
 Các event service có thể gửi:
 
 | Event | Ý nghĩa | Dữ liệu chính |
 | --- | --- | --- |
-| `status` | Kết nối, đang phân tích, hoặc tới lượt tổng hợp theo giới hạn bước | `message` |
+| `status` | Kết nối, đang phân tích, hoặc tới lượt tổng hợp | `message` |
 | `token` | Một phần text mới từ Gemini | `text` |
 | `reset` | Xóa đoạn text tạm nếu lượt đó chuyển sang gọi tool | Không có |
 | `tool_start` | Bắt đầu chạy tool | `tool`, `args` |
-| `tool_result` | Tool trả dữ liệu; Vue có thể dựng thẻ ngay | `result` |
+| `tool_result` | Tool trả dữ liệu; UI có thể dựng thẻ ngay | `result` |
 | `tool_error` | Một tool lỗi nhưng luồng vẫn có thể tiếp tục | `error` |
-| `error` | Lỗi tổng quát, chẳng hạn Gemini không khả dụng; service hiện gửi event này rồi trả câu fallback | `message` |
+| `error` | Lỗi tổng quát | `message` |
 | `done` | Kết thúc, kèm kết quả đầy đủ | `answer`, `usedTools`, `toolResults`, `toolErrors` |
 
-Vì request cần gửi JSON bằng `POST`, Vue dùng `fetch()` và đọc `response.body` bằng `ReadableStream`; `EventSource` chuẩn chỉ hỗ trợ GET. Nếu Gemini lỗi sau khi mở stream, service gửi `error`, trả kết quả dự phòng, sau đó route vẫn gửi `done` và đóng luồng. Nếu trình duyệt đóng kết nối trước khi response kết thúc, route abort yêu cầu Gemini đang chạy.
+Phần ví dụ này được giữ lại như tài liệu thực tiễn cho luồng hoạt động của service, dù nội dung tổng quan và response hiện đang được cập nhật theo code thật ở các mục trên.
 
-Endpoint JSON `POST /api/ai` vẫn được giữ lại cho Thunder Client và client cũ.
+Các dòng `data` là JSON và mỗi event kết thúc bằng một dòng trống. Client đọc `event:` làm tên loại sự kiện rồi parse JSON sau `data:`. `token` là một mảnh văn bản, không nhất thiết tương ứng một từ hay một câu; ghép các mảnh theo thứ tự. Payload `done` chứa kết quả cuối, còn `tool_result` cho phép giao diện cập nhật dữ liệu tool ngay khi có.
 
-## 7. Cache
+Vì request gửi JSON bằng `POST`, giao diện dùng `fetch()` và đọc `response.body` bằng `ReadableStream`; `EventSource` chuẩn chỉ hỗ trợ GET. Nếu Gemini lỗi sau khi mở stream, service gửi event `error`, trả câu fallback, sau đó route vẫn gửi `done` và đóng luồng. Nếu trình duyệt đóng kết nối trước khi response kết thúc, route abort yêu cầu Gemini đang chạy.
 
-Có nhiều lớp cache độc lập:
+Endpoint JSON `POST /api/ai` vẫn được giữ lại cho các client không dùng streaming.
 
-- Câu trả lời trợ lý: 5 phút, key là `travel:` cộng prompt đã lowercase.
+## Cache
+
+Các cache lưu trong RAM của tiến trình và có thời hạn riêng:
+
+- Câu trả lời trợ lý: 5 phút, key gồm `travel:` và prompt đã chuyển thành chữ thường.
 - Dữ liệu thời tiết: 5 phút, key dựa trên tọa độ và số ngày dự báo.
-- Tóm tắt Wikipedia: 10 phút, key dựa trên loại nội dung và từ khóa.
+- Tóm tắt Wikipedia: 10 phút, key dựa trên loại nội dung, tùy chọn thumbnail và từ khóa.
 
-Endpoint JSON `POST /api/ai` cache câu trả lời trợ lý trong 5 phút. Endpoint streaming không cache câu trả lời hoàn chỉnh để mỗi request có thể phát tiến trình và token mới; các cache thời tiết và Wikipedia vẫn được dùng. Cache là RAM của tiến trình; restart server sẽ xóa cache.
+Endpoint JSON `POST /api/ai` cache câu trả lời trợ lý trong 5 phút. Endpoint streaming không cache câu trả lời hoàn chỉnh để mỗi request có thể phát tiến trình và token mới; cache thời tiết và Wikipedia vẫn được dùng. Khởi động lại server sẽ xóa các cache trong RAM.
 
-## 8. Gọi service từ code
+## Gọi service từ code
 
 ```js
 import { askTravelAssistant } from './services/ai.js';
@@ -380,7 +471,7 @@ console.log(result.toolResults);
 
 Hàm `askGemini(prompt, systemInstruction?)` cũng được export để gọi Gemini một lần ở chế độ văn bản, không dùng tool. Prompt rỗng sẽ bị từ chối.
 
-## 9. Chạy kiểm tra
+## Chạy kiểm tra
 
 Từ thư mục gốc:
 
@@ -388,4 +479,4 @@ Từ thư mục gốc:
 npm test --prefix server
 ```
 
-Một số test thời tiết/Wikipedia gọi API ngoài, nên kết quả có thể phụ thuộc kết nối mạng và dữ liệu API.
+Một số test thời tiết/Wikipedia gọi API bên ngoài, nên kết quả có thể phụ thuộc kết nối mạng và dữ liệu API.
