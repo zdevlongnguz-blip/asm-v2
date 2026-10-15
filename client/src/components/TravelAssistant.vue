@@ -10,7 +10,7 @@ const initialPrompt = route.query.place
   ? `Giới thiệu về ${String(route.query.place)}`
   : 'Dự báo thời tiết 3 ngày ở Hà Nội và giới thiệu về Hà Nội';
 const prompt = ref(initialPrompt);
-// [DEMO: quick chips] Example prompts exercise zero, one, two, and three available tools.
+// Các câu hỏi mẫu minh họa những yêu cầu cần số lượng công cụ dữ liệu khác nhau.
 const demoQuestions = [
   { label: 'Vì sao bầu trời có màu xanh?', toolCount: 0, prompt: 'Giải thích ngắn gọn vì sao bầu trời có màu xanh.' },
   { label: 'Thời tiết Hà Nội hôm nay', toolCount: 1, prompt: 'Thời tiết hiện tại ở Hà Nội như thế nào?' },
@@ -31,6 +31,7 @@ const error = ref('');
 const statusMessage = ref('');
 const toolSummary = ref([]);
 const toolResults = ref([]);
+// API trả danh sách công cụ đã dùng; gộp các tên trùng để phần nguồn dữ liệu gọn hơn.
 const groupedToolSummary = computed(() => {
   const counts = new Map();
   for (const tool of toolSummary.value) {
@@ -39,22 +40,23 @@ const groupedToolSummary = computed(() => {
   return [...counts].map(([tool, count]) => ({ tool, count }));
 });
 
+// Kết quả công cụ được giữ chung, rồi lọc theo tên để mỗi khu vực giao diện chỉ nhận đúng loại dữ liệu.
 const currentWeatherResults = computed(() =>
   toolResults.value.filter((item) => item.tool === 'getCurrentWeatherByCityName' && item.data)
 );
 const forecastResults = computed(() =>
   toolResults.value.filter((item) => item.tool === 'getWeatherForecastByCityName' && item.data?.days?.length)
 );
-// [THUMBNAIL: new] Show Wikipedia tool results separately from the assistant's text answer.
+// Tách nội dung Wikipedia khỏi câu trả lời để có thể hiển thị kèm ảnh và nguồn riêng.
 const wikiResults = computed(() =>
   toolResults.value.filter((item) => item.tool === 'getWikiSummary' && item.data?.summary)
 );
-// [MARKDOWN: new] Sanitize model output before inserting parsed Markdown into the DOM.
+// Chuyển Markdown thành HTML rồi làm sạch trước khi dùng v-html để tránh chèn nội dung nguy hiểm.
 const renderedAnswer = computed(() =>
   DOMPurify.sanitize(marked.parse(answer.value, { breaks: true, gfm: true }))
 );
 
-// [DEMO: quick chips] Fill the prompt so the user can edit it before sending.
+// Câu hỏi mẫu chỉ điền vào ô nhập; người dùng vẫn có thể sửa trước khi gửi.
 function fillDemoQuestion(question) {
   prompt.value = question.prompt;
 }
@@ -65,9 +67,11 @@ function getToolLabel(tool) {
     getWeatherForecastByCityName: 'dự báo thời tiết',
     getWikiSummary: 'thông tin địa điểm',
   };
+  // Tên công cụ có thể được mở rộng ở backend; giữ tên gốc nếu chưa có nhãn thân thiện.
   return labels[tool] || tool;
 }
 
+// Mỗi SSE event cập nhật một phần trạng thái giao diện; dữ liệu cụ thể phụ thuộc vào loại event.
 function handleStreamEvent(type, data) {
   switch (type) {
     case 'status':
@@ -106,15 +110,19 @@ function handleStreamEvent(type, data) {
   }
 }
 
-// STREAM: Parse SSE frames from the POST response and update the UI as events arrive.
+// Đọc response dạng SSE: cập nhật giao diện theo từng event, không đợi toàn bộ câu trả lời mới hiển thị.
 async function readEventStream(response) {
   if (!response.body) throw new Error('Trình duyệt không hỗ trợ đọc luồng phản hồi.');
 
   const reader = response.body.getReader();
   const decoder = new TextDecoder();
+  // Một lần reader.read() có thể trả một phần event hoặc nhiều event cùng lúc, nên cần buffer.
   let buffer = '';
+  // Lưu event đã parse để DevTools có thể hiển thị toàn bộ nội dung backend gửi khi stream kết thúc.
+  const streamEvents = [];
 
   function dispatchFrame(frame) {
+    // Mỗi frame SSE gồm các dòng event:/data:; data có thể gồm nhiều dòng nên cần ghép lại.
     const lines = frame.split(/\r?\n/);
     const event = lines.find((line) => line.startsWith('event:'))?.slice(6).trim();
     const data = lines
@@ -122,13 +130,23 @@ async function readEventStream(response) {
       .map((line) => line.slice(5).trim())
       .join('\n');
 
-    if (event && data) handleStreamEvent(event, JSON.parse(data));
+    if (event && data) {
+      const parsedData = JSON.parse(data);
+      streamEvents.push({ event, data: parsedData });
+      // Log cả payload đã parse (dễ đọc) rồi mới áp dụng event vào state Vue.
+      console.debug('[AI stream] SSE event', { event, data: parsedData });
+      handleStreamEvent(event, parsedData);
+    }
   }
 
   while (true) {
     const { value, done } = await reader.read();
-    buffer += decoder.decode(value, { stream: !done });
+    // stream:true giữ lại byte UTF-8 chưa hoàn chỉnh để ký tự tiếng Việt không bị lỗi giữa hai chunk.
+    const chunk = decoder.decode(value, { stream: !done });
+    console.debug('[AI stream] raw chunk', { done, chunk });
+    buffer += chunk;
 
+    // SSE phân cách frame bằng dòng trống; chỉ parse frame hoàn chỉnh, giữ phần dở dang cho lần đọc sau.
     let frameEnd = buffer.indexOf('\n\n');
     while (frameEnd !== -1) {
       dispatchFrame(buffer.slice(0, frameEnd));
@@ -137,7 +155,16 @@ async function readEventStream(response) {
     }
 
     if (done) {
+      // Backend có thể đóng stream khi buffer còn frame cuối chưa kết thúc bằng dòng trống.
       if (buffer.trim()) dispatchFrame(buffer);
+      // Snapshot trạng thái cuối cùng để đối chiếu payload backend với nội dung đã render.
+      console.info('[AI stream] complete response', {
+        events: streamEvents,
+        answer: answer.value,
+        toolSummary: toolSummary.value,
+        toolResults: toolResults.value,
+        error: error.value,
+      });
       break;
     }
   }
@@ -150,6 +177,7 @@ async function askAssistant() {
     return;
   }
 
+  // Xóa kết quả lượt trước để event mới không trộn với câu trả lời cũ.
   loading.value = true;
   error.value = '';
   answer.value = '';
@@ -158,6 +186,7 @@ async function askAssistant() {
   toolResults.value = [];
 
   try {
+    // Endpoint trả SSE qua POST vì nội dung câu hỏi được gửi trong JSON body.
     const response = await fetch(apiUrl('/ai/stream'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -165,6 +194,7 @@ async function askAssistant() {
     });
 
     if (!response.ok) {
+      // Khi HTTP lỗi, endpoint thường trả JSON thay vì mở một luồng SSE.
       const result = await response.json().catch(() => ({}));
       throw new Error(result.error || `Request thất bại (${response.status})`);
     }
@@ -173,6 +203,7 @@ async function askAssistant() {
   } catch (err) {
     error.value = err?.response?.data?.error || err?.message || 'Có lỗi khi gọi API';
   } finally {
+    // Dù thành công hay lỗi, mở lại nút gửi sau khi request kết thúc.
     loading.value = false;
   }
 }
@@ -196,7 +227,7 @@ async function askAssistant() {
           placeholder="Ví dụ: Dự báo thời tiết 3 ngày ở Hà Nội và giới thiệu về nơi này"
         />
 
-        <!-- [DEMO: quick chips] Keep common prompts visible and send them with one click. -->
+        <!-- Câu hỏi nhanh điền nội dung vào ô nhập; thao tác gửi vẫn dùng cùng luồng với câu hỏi tự nhập. -->
         <div class="quick-prompts" aria-label="Gợi ý câu hỏi nhanh">
           <div class="quick-prompts-heading">
             <strong>Gợi ý nhanh</strong>
@@ -223,7 +254,7 @@ async function askAssistant() {
         </button>
       </form>
 
-      <!-- STREAM: Show live analysis and tool progress from the SSE endpoint. -->
+      <!-- Trạng thái được cập nhật bởi các event status/tool_start/tool_result trong luồng SSE. -->
       <div v-if="statusMessage" class="progress" role="status" aria-live="polite">
         <span class="progress-dot" :class="{ active: loading }" aria-hidden="true" />
         <span>{{ statusMessage }}</span>
@@ -233,9 +264,9 @@ async function askAssistant() {
 
       <section v-if="answer || wikiResults.length" class="result-box" aria-live="polite">
         <h2>Thông tin</h2>
-        <!-- [THUMBNAIL: new] Keep the AI answer and its Wikipedia context in one result panel. -->
+        <!-- Câu trả lời và ngữ cảnh Wikipedia cùng nằm trong khu vực thông tin nhưng được render riêng. -->
         <div class="answer-layout" :class="{ 'has-answer': answer }">
-          <!-- [MARKDOWN: new] Render sanitized Markdown for readable headings, lists, and code. -->
+          <!-- Nội dung Markdown đã được làm sạch ở renderedAnswer trước khi đưa vào DOM. -->
           <div v-if="answer" class="markdown-answer" v-html="renderedAnswer" />
           <div v-if="wikiResults.length" class="wiki-context-list">
             <figure v-for="(item, index) in wikiResults" :key="`wiki-${index}`" class="wiki-context">
@@ -257,6 +288,7 @@ async function askAssistant() {
       </section>
 
       <section v-if="currentWeatherResults.length || forecastResults.length" class="weather-section">
+        <!-- Dữ liệu thời tiết hiện tại và dự báo đến từ hai tool khác nhau, được lọc ở các computed phía trên. -->
         <h2>Thời tiết</h2>
 
         <div class="row g-3">
@@ -312,6 +344,7 @@ async function askAssistant() {
       </section>
 
       <div v-if="groupedToolSummary.length" class="tools-box">
+        <!-- Danh sách này là tổng kết tool backend báo đã dùng, không phải nội dung trả về của từng tool. -->
         <h3>Nguồn dữ liệu</h3>
         <ul>
           <li v-for="item in groupedToolSummary" :key="item.tool">
