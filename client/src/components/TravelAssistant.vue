@@ -31,6 +31,13 @@ const error = ref('');
 const statusMessage = ref('');
 const toolSummary = ref([]);
 const toolResults = ref([]);
+const groupedToolSummary = computed(() => {
+  const counts = new Map();
+  for (const tool of toolSummary.value) {
+    counts.set(tool, (counts.get(tool) ?? 0) + 1);
+  }
+  return [...counts].map(([tool, count]) => ({ tool, count }));
+});
 
 const currentWeatherResults = computed(() =>
   toolResults.value.filter((item) => item.tool === 'getCurrentWeatherByCityName' && item.data)
@@ -304,10 +311,13 @@ async function askAssistant() {
         </div>
       </section>
 
-      <div v-if="toolSummary.length" class="tools-box">
+      <div v-if="groupedToolSummary.length" class="tools-box">
         <h3>Nguồn dữ liệu</h3>
         <ul>
-          <li v-for="tool in toolSummary" :key="tool"><code>{{ tool }}</code></li>
+          <li v-for="item in groupedToolSummary" :key="item.tool">
+            <code>{{ item.tool }}</code>
+            <small v-if="item.count > 1">({{ item.count }} lượt)</small>
+          </li>
         </ul>
       </div>
     </section>
