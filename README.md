@@ -45,7 +45,6 @@ Cùng origin, phục vụ tại domain root:
 # client/.env hoặc client/.env.production
 VITE_BASE_PATH=/
 VITE_API_BASE_URL=
-CLIENT_ORIGINS=
 ```
 
 Khác origin:
