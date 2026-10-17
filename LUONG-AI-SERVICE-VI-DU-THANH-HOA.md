@@ -196,6 +196,80 @@ contents.push({
 
 Với trường hợp bình thường, có thể hình dung **hai lượt Gemini**: lượt đầu yêu cầu tool, lượt sau tổng hợp. Nếu model yêu cầu thêm tool, service có thể lặp tiếp; giới hạn hiện tại là tối đa bốn vòng có tool rồi một lượt tổng hợp cuối.
 
+### 6.1 Chính xác thì backend gọi API Gemini ra sao?
+
+Ở mỗi lượt, `streamModelTurn()` gọi SDK `@google/genai` bằng `models.generateContentStream()`. Những đầu vào chính là:
+
+- `model`: giá trị `GEMINI_MODEL`, mặc định `gemini-3-flash-preview`.
+- `contents`: toàn bộ lịch sử hội thoại tích lũy đến thời điểm đó, không chỉ prompt gần nhất.
+- `config.systemInstruction`: quy tắc hành xử của trợ lý.
+- `config.temperature`: `0.2`.
+- `config.tools`: khai báo function tools ở các step 0–3; không khai báo ở step 4.
+- `config.abortSignal`: cho phép route yêu cầu SDK dừng nếu kết nối stream bị đóng.
+
+Gemini trả về một stream gồm nhiều chunk. Service không gọi tool ngay khi thấy một mảnh `functionCall`: arguments có thể được chia giữa các chunk. `streamModelTurn()` gom các phần có cùng ID (hoặc cùng tên và vị trí part), ghép arguments lại, rồi chỉ trả danh sách calls sau khi stream của lượt Gemini kết thúc. Sau đó `chatWithTools()` mới thực thi các calls.
+
+Nếu chunk có text, service phát `token` ngay để giao diện có thể hiện chữ sớm. Nếu một lượt vừa có text vừa có function call, sau khi nhận đủ lượt service phát `reset` trước khi chạy tool; phần text trung gian đó không bị trộn vào câu trả lời tổng hợp cuối.
+
+### 6.2 Vòng lặp `step` và ý nghĩa riêng của `step = 4`
+
+Code có hai điều kiện cần đọc cùng nhau:
+
+```js
+for (let step = 0; step <= MAX_STEPS; step++) {
+  // ...gọi Gemini...
+  if (calls.length === 0) return result;
+  if (step === MAX_STEPS) throw new Error('Model tiếp tục yêu cầu tool sau giới hạn');
+  // ...chạy tools rồi thêm functionResponse vào contents...
+}
+```
+
+Với `MAX_STEPS = 4`, vòng lặp có thể gọi Gemini tại các giá trị `step` từ 0 đến 4. Nhưng cấu hình tool là `step < MAX_STEPS`, nên step 4 **không có khai báo tool**. Do đó:
+
+- Tối đa có **5 request/lượt sinh nội dung tới Gemini**: step 0, 1, 2, 3 và 4.
+- Tối đa có **4 đợt thực thi tool**: calls nhận ở step 0, 1, 2 hoặc 3.
+- Mỗi đợt có thể gồm nhiều tool chạy song song; giới hạn bốn đợt không phải giới hạn bốn tool đơn lẻ.
+- Thông thường service dừng sớm ngay khi Gemini trả text mà không có function call. Không phải request nào cũng đi đến step 4.
+
+| Step | Đây là request Gemini thứ | Có khai báo tools? | Nếu Gemini trả function calls |
+| ---: | ---: | --- | --- |
+| 0 | 1 | Có | Thực thi đợt tool thứ nhất, rồi thêm phản hồi vào lịch sử. |
+| 1 | 2 | Có | Nếu còn cần dữ liệu, thực thi đợt tool thứ hai. Nếu không có calls, trả câu trả lời và dừng. |
+| 2 | 3 | Có | Có thể thực thi đợt tool thứ ba. |
+| 3 | 4 | Có | Đây là đợt cuối được phép thực thi tool; sau đó chuyển sang step 4. |
+| 4 | 5 | Không | Nếu không có calls, đây là câu trả lời cuối. Nếu vẫn có calls, service ném lỗi vượt giới hạn và trả fallback. |
+
+Luồng prompt Thanh Hóa nếu Gemini yêu cầu cả ba tool cùng lượt sẽ là:
+
+```text
+step 0: gửi prompt + khai báo tools
+        Gemini yêu cầu 3 function calls
+        backend chạy 3 tool song song, thu dữ liệu
+
+step 1: gửi lịch sử gồm prompt, function calls của Gemini,
+        và 3 functionResponse vừa lấy được
+        Gemini trả câu trả lời dạng text chunks, không yêu cầu tool
+        service kết thúc; step 2, 3, 4 không chạy
+```
+
+Ở ví dụ này, ba tool là **ba function calls trong một đợt**, không phải ba step. Thường chỉ cần hai lượt Gemini: lượt đầu chọn/call tools và lượt kế tiếp tổng hợp.
+
+Nếu model cứ yêu cầu thêm dữ liệu ở nhiều lượt, contents được nối dần theo dạng:
+
+```text
+prompt ban đầu
+→ model functionCall ở step 0
+→ user functionResponse của step 0
+→ model functionCall ở step 1 (nếu có)
+→ user functionResponse của step 1
+→ ...
+→ request tổng hợp tại step 4, không khai báo tools
+```
+
+Tại step 4, Gemini được yêu cầu dựa trên prompt và toàn bộ lịch sử/function responses đã tích lũy để trả lời bằng text, không được cấp tool declarations trong request đó. Nếu response vẫn chứa function calls, nhánh kiểm tra `step === MAX_STEPS` ném lỗi thay vì thực thi thêm tool. `askTravelAssistantStream()` bắt lỗi này, phát event `error` và trả câu trả lời fallback.
+
+Lưu ý theo đúng hành vi hiện tại: nhánh fallback tổng thể tạo kết quả mới với `usedTools`, `toolResults` và `toolErrors` rỗng. Nếu stream đã phát các event `tool_result` ở step trước, frontend từng nhận chúng; nhưng event `done` của fallback lại mang các mảng rỗng và có thể thay thế dữ liệu đang hiển thị. Điều này áp dụng cho lỗi tổng thể như vượt giới hạn, khác với lỗi riêng một tool vốn được ghi vào `toolErrors` để model còn có thể tiếp tục.
+
 ## 7. Frontend nhận kết quả và dựng giao diện
 
 Vì endpoint đang dùng SSE, các dữ liệu đến frontend theo các event. Ví dụ giản lược:
