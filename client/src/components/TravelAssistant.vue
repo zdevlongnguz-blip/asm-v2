@@ -24,6 +24,11 @@ const demoQuestions = [
     toolCount: 3,
     prompt: 'Cho biết thời tiết hiện tại, dự báo 3 ngày tới ở Hà Nội và giới thiệu ngắn về Hà Nội.',
   },
+  {
+    label: 'Du lịch Tà Xùa: thời tiết & kế hoạch',
+    toolCount: 2,
+    prompt: 'Tôi muốn đi du lịch Tà Xùa, thời tiết 3 ngày tới ở đây như nào, hãy lên kế hoạch cho tôi',
+  },
 ];
 const loading = ref(false);
 const answer = ref('');
